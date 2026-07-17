@@ -4,10 +4,16 @@ namespace App\Filament\Resources;
 
 use App\Filament\Resources\CatResource\Pages;
 use App\Models\Cat;
+use App\Models\User;
 use BackedEnum;
+use Filament\Actions\BulkActionGroup;
+use Filament\Actions\DeleteAction;
+use Filament\Actions\DeleteBulkAction;
+use Filament\Actions\EditAction;
 use Filament\Forms;
-use Filament\Schemas\Schema;
+use Filament\Notifications\Notification;
 use Filament\Resources\Resource;
+use Filament\Schemas\Schema;
 use Filament\Tables;
 use Filament\Tables\Table;
 use UnitEnum;
@@ -35,10 +41,23 @@ class CatResource extends Resource
                 Forms\Components\TextInput::make('warna')
                     ->maxLength(255),
 
+                Forms\Components\FileUpload::make('gambar')
+                    ->disk('public')
+                    ->directory('cats')
+                    ->image()
+                    ->maxSize(2048)
+                    ->columnSpanFull(),
+
                 Forms\Components\TextInput::make('harga')
                     ->required()
                     ->numeric()
                     ->prefix('Rp'),
+
+                Forms\Components\TextInput::make('harga_beli')
+                    ->required()
+                    ->numeric()
+                    ->prefix('Rp')
+                    ->label('Harga Beli'),
 
                 Forms\Components\TextInput::make('stok')
                     ->required()
@@ -49,6 +68,16 @@ class CatResource extends Resource
                     ->required()
                     ->default('kaleng')
                     ->maxLength(50),
+
+                Forms\Components\Select::make('merek_id')
+                    ->relationship('merek', 'nama')
+                    ->searchable()
+                    ->preload(),
+
+                Forms\Components\Select::make('supplier_id')
+                    ->relationship('supplier', 'nama')
+                    ->searchable()
+                    ->preload(),
             ]);
     }
 
@@ -56,6 +85,11 @@ class CatResource extends Resource
     {
         return $table
             ->columns([
+                Tables\Columns\ImageColumn::make('gambar')
+                    ->disk('public')
+                    ->circular()
+                    ->label('Gambar'),
+
                 Tables\Columns\TextColumn::make('nama')
                     ->searchable()
                     ->sortable(),
@@ -68,10 +102,25 @@ class CatResource extends Resource
                     ->prefix('Rp')
                     ->sortable(),
 
+                Tables\Columns\TextColumn::make('harga_beli')
+                    ->numeric()
+                    ->prefix('Rp')
+                    ->label('Harga Beli')
+                    ->sortable()
+                    ->toggleable(isToggledHiddenByDefault: true),
+
                 Tables\Columns\TextColumn::make('stok')
                     ->sortable(),
 
                 Tables\Columns\TextColumn::make('satuan'),
+
+                Tables\Columns\TextColumn::make('merek.nama')
+                    ->searchable()
+                    ->sortable(),
+
+                Tables\Columns\TextColumn::make('supplier.nama')
+                    ->searchable()
+                    ->sortable(),
 
                 Tables\Columns\TextColumn::make('created_at')
                     ->dateTime()
@@ -82,12 +131,31 @@ class CatResource extends Resource
                 //
             ])
             ->actions([
-                \Filament\Actions\EditAction::make(),
-                \Filament\Actions\DeleteAction::make(),
+                EditAction::make()
+                    ->after(function ($record) {
+                        $admins = User::role(['admin', 'super_admin'])->get();
+                        Notification::make()
+                            ->title('Cat Diubah')
+                            ->body(auth()->user()->name." mengubah {$record->nama} ({$record->warna})")
+                            ->info()
+                            ->sendToDatabase($admins);
+                    }),
+                DeleteAction::make()
+                    ->action(function ($record) {
+                        $admins = User::role(['admin', 'super_admin'])->get();
+                        $nama = $record->nama;
+                        $warna = $record->warna;
+                        $record->delete();
+                        Notification::make()
+                            ->title('Cat Dihapus')
+                            ->body(auth()->user()->name." menghapus {$nama} ({$warna})")
+                            ->danger()
+                            ->sendToDatabase($admins);
+                    }),
             ])
             ->bulkActions([
-                \Filament\Actions\BulkActionGroup::make([
-                    \Filament\Actions\DeleteBulkAction::make(),
+                BulkActionGroup::make([
+                    DeleteBulkAction::make(),
                 ]),
             ]);
     }

@@ -22,3 +22,7 @@
 Homestead.json
 Homestead.yaml
 Thumbs.db
+.env.mysql-backup
+database/database.sqlite
+database/database.sqlite-journal
+storage/framework/sessions/*
