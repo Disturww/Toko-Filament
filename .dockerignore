@@ -1,0 +1,16 @@
+node_modules
+vendor
+.git
+.gitignore
+.gitattributes
+.env
+.env.*
+!.env.example
+.dockerignore
+Dockerfile
+docker-compose*
+README.md
+.vscode
+.idea
+*.md
+bootstrap/cache
